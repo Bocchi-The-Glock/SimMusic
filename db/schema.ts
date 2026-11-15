@@ -5,6 +5,12 @@ export const users = sqliteTable('users', {
   gameKey: text('game_key').notNull().unique(), salt: text('salt').notNull(),
   passwordHash: text('password_hash').notNull(), createdAt: integer('created_at').notNull(),
 });
+export const players = sqliteTable('players', {
+  id:text('id').primaryKey(), gameId:text('game_id').notNull(), gameKey:text('game_key').notNull().unique(), contact:text('contact').notNull().default(''),
+});
+export const importRecords = sqliteTable('import_records', {
+  source:text('source').notNull(), sourceId:text('source_id').notNull(), entityId:text('entity_id').notNull(),
+},t=>[primaryKey({columns:[t.source,t.sourceId]})]);
 export const profiles = sqliteTable('profiles', {
   userId: text('user_id').primaryKey(), bio: text('bio').notNull().default(''),
 });
@@ -29,7 +35,7 @@ export const shops = sqliteTable('shops', {
   id: text('id').primaryKey(), name: text('name').notNull(), nameKey: text('name_key').notNull().unique(),
   x: integer('x').notNull(), y: integer('y').notNull(), z: integer('z').notNull(),
   port: text('port').notNull(), createdAt: integer('created_at').notNull(),
-  ownerId: text('owner_id'),
+  ownerId: text('owner_id'), creatorId:text('creator_id'), coordinatesKnown:integer('coordinates_known',{mode:'boolean'}).notNull().default(true),
 });
 export const genres = sqliteTable('genres', {
   name: text('name').primaryKey(), nameKey: text('name_key').notNull().unique(),
@@ -37,6 +43,7 @@ export const genres = sqliteTable('genres', {
 export const songs = sqliteTable('songs', {
   id: text('id').primaryKey(), title: text('title').notNull(), artist: text('artist').notNull(),
   price: real('price'), customPrice: integer('custom_price', {mode: 'boolean'}).notNull(),
+  instruments:text('instruments').notNull().default('["钢琴"]'), saleX:integer('sale_x'),saleY:integer('sale_y'),saleZ:integer('sale_z'),
   bars: integer('bars').notNull(), genre: text('genre').notNull(), description: text('description').notNull(),
   owner: text('owner').notNull(), ownerId: text('owner_id').notNull(), createdAt: integer('created_at').notNull(),
 });

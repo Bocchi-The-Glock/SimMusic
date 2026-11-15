@@ -1,4 +1,4 @@
-import { songFields, songFavoriteStatement } from '@/lib/server/song-fields';
+import { songFields, songFavoriteStatement, type StoredSongExtras } from '@/lib/server/song-fields';
 import { body, checkMutationOrigin, db, endpoint, json, requireUser } from '@/lib/server/core';
 import { HttpError } from '@/lib/server/validation';
 import { decodeImage, discardImage, IMAGE_BODY_BYTES, imageInsert, imageUrl, storeImage, imageSelect, discardImageLater, imageDelete } from '@/lib/server/images';
@@ -15,11 +15,11 @@ export async function DELETE(request: Request, context: {params: Promise<{id:str
 
 export async function PATCH(request: Request, context: {params: Promise<{id:string}>}) { return endpoint(async () => {
   const user=await requireUser(request), data=await body(request,IMAGE_BODY_BYTES), {id}=await context.params;
-  const song=await db().prepare('SELECT owner,owner_id FROM songs WHERE id=?').bind(id).first<{owner:string;owner_id:string}>();
+  const song=await db().prepare('SELECT owner,owner_id,instruments,sale_x,sale_y,sale_z FROM songs WHERE id=?').bind(id).first<{owner:string;owner_id:string}&StoredSongExtras>();
   if (!song) throw new HttpError(404,'这首乐曲已不存在');
   if (user.role!=='admin' && song.owner_id!==user.id) throw new HttpError(403,'只有收录者或管理员可以编辑这首乐曲');
-  const fields=await songFields(data);
-  const {title,artist,price,customPrice,bars,genre,description,shopIds}=fields;
+  const fields=await songFields(data,song);
+  const {title,artist,price,customPrice,bars,genre,description,shopIds,instruments,saleCoordinates}=fields;
   const changeImage=data.imageDataUrl!==undefined;
   const image=changeImage ? await storeImage(decodeImage(data.imageDataUrl)) : null;
   let previousKey:string|undefined;
@@ -27,7 +27,7 @@ export async function PATCH(request: Request, context: {params: Promise<{id:stri
   try {
     const results=await db().batch<Record<string,unknown>>([
       imageSelect('song',id),
-      db().prepare('UPDATE songs SET title=?,artist=?,price=?,custom_price=?,bars=?,genre=?,description=? WHERE id=?').bind(title,artist,price,customPrice?1:0,bars,genre,description,id),
+      db().prepare('UPDATE songs SET title=?,artist=?,price=?,custom_price=?,bars=?,genre=?,description=?,instruments=?,sale_x=?,sale_y=?,sale_z=? WHERE id=?').bind(title,artist,price,customPrice?1:0,bars,genre,description,JSON.stringify(instruments),saleCoordinates?.x??null,saleCoordinates?.y??null,saleCoordinates?.z??null,id),
       db().prepare('DELETE FROM song_shops WHERE song_id=?').bind(id),
       ...shopIds.map(shopId=>db().prepare('INSERT INTO song_shops (song_id,shop_id) VALUES (?,?)').bind(id,shopId)),
       ...(changeImage ? [image ? imageInsert('song',id,image) : imageDelete('song',id)] : []),

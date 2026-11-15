@@ -16,5 +16,5 @@ export const DEFAULT_GENRES = Object.freeze([
   '迪斯科','舞曲','浩室','Techno','Trance','Dubstep','Drum & Bass',
   '氛围音乐','实验音乐','新世纪','管弦乐','室内乐','交响乐','歌剧',
   '钢琴','指弹','合唱','福音','中国风','世界音乐','City Pop',
-  'J-Pop','K-Pop','动漫音乐','游戏音乐','影视配乐','Vocaloid','Lo-fi',
+  'J-Pop','K-Pop','动漫音乐','游戏音乐','影视配乐','Vocaloid','Lo-fi','其他',
 ]);

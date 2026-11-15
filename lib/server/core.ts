@@ -2,7 +2,7 @@ import { env } from 'cloudflare:workers';
 import { ADMIN, STARRY, DEFAULT_GENRES } from './constants';
 import { HttpError } from './validation';
 
-export type User = {id: string; gameId: string; role: 'admin' | 'user'; bio: string; avatarUrl: string | null};
+export type User = {id: string; gameId: string; role: 'admin' | 'user'; bio: string; contact: string; avatarUrl: string | null};
 export function db(): D1Database {
   if (!env.DB) throw new HttpError(503, '数据服务暂不可用，请稍后重试');
   return env.DB;
@@ -73,11 +73,12 @@ export function sessionToken(request: Request) {
   }
   return request.headers.get('cookie')?.split(';').map((s)=>s.trim()).find((s)=>s.startsWith('simlive_session='))?.slice('simlive_session='.length) ?? '';
 }
-export async function profileDetails(userId: string): Promise<{bio: string; avatarUrl: string | null}> {
+export async function profileDetails(userId: string): Promise<{bio: string; contact: string; avatarUrl: string | null}> {
   const profile=await db().prepare(`SELECT COALESCE((SELECT bio FROM profiles WHERE user_id=?),'') AS bio,
+    COALESCE((SELECT contact FROM players WHERE id=?),'') AS contact,
     (SELECT '/api/images/' || object_key FROM entity_images WHERE entity_type='profile' AND entity_id=?) AS avatarUrl`)
-    .bind(userId,userId).first<{bio:string;avatarUrl:string|null}>();
-  return profile ?? {bio:'',avatarUrl:null};
+    .bind(userId,userId,userId).first<{bio:string;contact:string;avatarUrl:string|null}>();
+  return profile ?? {bio:'',contact:'',avatarUrl:null};
 }
 export async function currentUserStatement(request: Request): Promise<D1PreparedStatement> {
   const token=sessionToken(request);
@@ -87,8 +88,8 @@ export async function currentUserStatement(request: Request): Promise<D1Prepared
   return db().prepare(`SELECT s.user_id AS id,
     CASE WHEN s.user_id=? THEN ? ELSE u.game_id END AS gameId,
     CASE WHEN s.user_id=? THEN 'admin' ELSE 'user' END AS role,
-    COALESCE(p.bio,'') AS bio, '/api/images/' || i.object_key AS avatarUrl
-    FROM sessions s LEFT JOIN users u ON u.id=s.user_id LEFT JOIN profiles p ON p.user_id=s.user_id
+    COALESCE(p.bio,'') AS bio, COALESCE(player.contact,'') AS contact, '/api/images/' || i.object_key AS avatarUrl
+    FROM sessions s LEFT JOIN players player ON player.id=s.user_id LEFT JOIN users u ON u.id=s.user_id LEFT JOIN profiles p ON p.user_id=s.user_id
     LEFT JOIN entity_images i ON i.entity_type='profile' AND i.entity_id=s.user_id
     WHERE s.token_hash=? AND s.expires_at>? AND (s.user_id=? OR u.id IS NOT NULL)`)
     .bind(ADMIN.id,ADMIN.gameId,ADMIN.id,await sha256(token),Date.now(),ADMIN.id);
