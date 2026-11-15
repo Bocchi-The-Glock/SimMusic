@@ -63,3 +63,7 @@ npm run dev
 品牌使用 SimMusic。旧的会话 Cookie 名称保留兼容，现有用户和已上传图片不会因改名失效。
 
 封面排版更新：中文统一优先使用微软雅黑；英文常规每行10字符，超长单词按实际宽度尝试完整显示，放不下时再拆行。音乐默认封面文字缩小20%。小节数选填，未填写内部以0保存且界面隐藏。
+
+## 阿里云版本
+
+运行 npm run build:aliyun 生成独立部署包，数据库和图片保存在服务器本地。完整步骤见 [阿里云部署说明](docs/ALIYUN_DEPLOY.md)。GitHub Actions 的 Package SimMusic for Aliyun 会生成 Linux 发布包。

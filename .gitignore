@@ -49,3 +49,5 @@ yarn-error.log*
 /backups/
 /.tools/
 /.openai/
+/data/
+/release/

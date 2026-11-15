@@ -19,7 +19,11 @@
     "db:migrate:local": "wrangler d1 migrations apply DB --local --config wrangler.jsonc",
     "db:migrate:remote": "node scripts/cloudflare-command.mjs migrate",
     "db:backup": "node scripts/cloudflare-command.mjs backup",
-    "deploy": "node scripts/cloudflare-command.mjs deploy"
+    "deploy": "node scripts/cloudflare-command.mjs deploy",
+    "build:aliyun": "node scripts/build-aliyun.mjs",
+    "start:aliyun": "node dist/standalone/server.js",
+    "test:storage": "node --test server/storage.test.mjs",
+    "import:cloudflare": "node scripts/import-cloudflare.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

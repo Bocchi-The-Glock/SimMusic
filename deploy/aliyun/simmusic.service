@@ -1,0 +1,23 @@
+[Unit]
+Description=SimMusic
+After=network.target
+
+[Service]
+Type=simple
+User=simmusic
+Group=simmusic
+WorkingDirectory=/opt/simmusic/current
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=3100
+Environment=SIMMUSIC_DATA_DIR=/var/lib/simmusic
+Environment=NODE_OPTIONS=--max-old-space-size=384
+ExecStart=/opt/simmusic/node/bin/node /opt/simmusic/current/server.js
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
