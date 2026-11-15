@@ -1,5 +1,9 @@
 # SimMusic
 
+网站：https://simmusic.2562187628.workers.dev
+
+自动部署：[GitHub Actions](https://github.com/Bocchi-The-Glock/SimMusic/actions/workflows/deploy.yml)，推送到 `main` 后运行。
+
 Simmc 玩家 Livehouse 排班与乐曲收录网站。Google 风格的简洁浅色界面，支持桌面和手机。
 
 ## 功能
