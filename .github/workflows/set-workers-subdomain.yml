@@ -1,0 +1,40 @@
+name: Set Workers subdomain
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: simmusic-subdomain
+  cancel-in-progress: false
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Set account subdomain to simmc
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          node --input-type=module <<'JS'
+          const account=process.env.CLOUDFLARE_ACCOUNT_ID;
+          const token=process.env.CLOUDFLARE_API_TOKEN;
+          if(!account||!token)throw new Error('Missing Cloudflare configuration');
+          const url=`https://api.cloudflare.com/client/v4/accounts/${account}/workers/subdomain`;
+          async function api(method='GET',body){
+            const response=await fetch(url,{method,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(30000)});
+            const data=await response.json();
+            if(!response.ok||!data.success)throw new Error(JSON.stringify({status:response.status,errors:data.errors}));
+            return data.result;
+          }
+          const current=await api();
+          console.log('Current subdomain:',current.subdomain);
+          if(!['2562187628','simmc'].includes(current.subdomain))throw new Error('Unexpected existing subdomain; no changes made');
+          if(current.subdomain!=='simmc')await api('PUT',{subdomain:'simmc'});
+          const verified=await api();
+          if(verified.subdomain!=='simmc')throw new Error('Subdomain update not confirmed');
+          console.log('Confirmed: https://simmusic.simmc.workers.dev');
+          JS
