@@ -1,5 +1,5 @@
 import { ADMIN } from '@/lib/server/constants';
-import { body, db, endpoint, equalHash, json, passwordHash, profileDetails, randomHex, rateLimit, sessionCookie, sessionToken, sha256, type User } from '@/lib/server/core';
+import { body, db, endpoint, externalClient, equalHash, json, passwordHash, profileDetails, randomHex, rateLimit, sessionCookie, sessionToken, sha256, type User } from '@/lib/server/core';
 import { gameId, HttpError } from '@/lib/server/validation';
 export const dynamic = 'force-dynamic';
 
@@ -37,5 +37,5 @@ export async function POST(request: Request) { return endpoint(async () => {
   const statements=[db().prepare('INSERT INTO sessions (token_hash,user_id,expires_at) VALUES (?,?,?)').bind(await sha256(token),user.id,now+1209600000),db().prepare('DELETE FROM sessions WHERE expires_at <= ?').bind(now)];
   if (old) statements.push(db().prepare('DELETE FROM sessions WHERE token_hash = ?').bind(await sha256(old)));
   await db().batch(statements);
-  return json({user},data.mode==='register'?201:200,{'Set-Cookie':sessionCookie(request,token)});
+  return json({user,...(externalClient(request)?{sessionToken:token}:{})},data.mode==='register'?201:200,{'Set-Cookie':sessionCookie(request,token)});
 }); }

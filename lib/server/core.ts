@@ -41,7 +41,11 @@ export async function body(request: Request, maxBytes = 20000): Promise<Record<s
   if (typeof data !== 'object' || !data || Array.isArray(data)) throw new HttpError(400, '提交内容格式有误');
   return data as Record<string, unknown>;
 }
+export function externalClient(request: Request) {
+  return !!env.SIMMUSIC_ALLOWED_ORIGIN && request.headers.get("origin") === env.SIMMUSIC_ALLOWED_ORIGIN;
+}
 export function checkMutationOrigin(request: Request) {
+  if (externalClient(request)) return;
   const origin = request.headers.get('origin');
   if ((origin && origin !== new URL(request.url).origin) || request.headers.get('sec-fetch-site') === 'cross-site') throw new HttpError(403, '请求来源不被允许');
 }
@@ -63,6 +67,10 @@ export function randomHex(bytes = 32) {
   return Array.from(crypto.getRandomValues(new Uint8Array(bytes)), (b) => b.toString(16).padStart(2,'0')).join('');
 }
 export function sessionToken(request: Request) {
+  if (externalClient(request)) {
+    const bearer=request.headers.get("authorization")?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];
+    if (bearer) return bearer;
+  }
   return request.headers.get('cookie')?.split(';').map((s)=>s.trim()).find((s)=>s.startsWith('simlive_session='))?.slice('simlive_session='.length) ?? '';
 }
 export async function profileDetails(userId: string): Promise<{bio: string; avatarUrl: string | null}> {

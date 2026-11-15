@@ -5,14 +5,22 @@ import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 const data=await mkdtemp(join(tmpdir(),'simmusic-smoke-'));
 const base='http://127.0.0.1:3197';
+const pagesOrigin='https://simmc-music.github.io';
 let child,logs='',count=0;
-function start(){child=spawn(process.execPath,['server.js'],{cwd:resolve('dist/standalone'),env:{...process.env,HOST:'127.0.0.1',PORT:'3197',SIMMUSIC_DATA_DIR:data},windowsHide:true,stdio:['ignore','pipe','pipe']});child.stdout.on('data',b=>logs+=b);child.stderr.on('data',b=>logs+=b);}
+function start(){child=spawn(process.execPath,['server.js'],{cwd:resolve('dist/standalone'),env:{...process.env,HOST:'127.0.0.1',PORT:'3197',SIMMUSIC_DATA_DIR:data,SIMMUSIC_ALLOWED_ORIGIN:pagesOrigin},windowsHide:true,stdio:['ignore','pipe','pipe']});child.stdout.on('data',b=>logs+=b);child.stderr.on('data',b=>logs+=b);}
 async function stop(){if(child.exitCode!==null)return;await new Promise(r=>{child.once('exit',r);child.kill();});}
 async function ready(){for(let i=0;i<100;i++){try{const r=await fetch(base+'/api/state');if(r.ok)return;}catch{}if(child.exitCode!==null)break;await new Promise(r=>setTimeout(r,100));}throw Error(logs);}
 async function call(path,method='GET',body,cookie='',status=200){const r=await fetch(base+path,{method,headers:{Origin:base,...(body?{'Content-Type':'application/json'}:{}),...(cookie?{Cookie:cookie}:{})},body:body?JSON.stringify(body):undefined});const json=await r.json();assert.equal(r.status,status,JSON.stringify(json));count++;return {json,cookie:r.headers.get('set-cookie')?.split(';')[0]};}
 try{
  start();await ready();
  const initial=(await call('/api/state')).json;assert.equal(initial.livehouses[0].id,'starry');
+ const external=await fetch(base+'/api/auth',{method:'POST',headers:{Origin:pagesOrigin,'Content-Type':'application/json'},body:JSON.stringify({mode:'register',gameId:'PagesTest',password:'test-only-12345',confirmPassword:'test-only-12345'})});
+ assert.equal(external.status,201);const externalData=await external.json();assert.match(externalData.sessionToken,/^[a-f0-9]{64}$/);
+ const authHeaders={Origin:pagesOrigin,Authorization:'Bearer '+externalData.sessionToken};
+ assert.equal((await (await fetch(base+'/api/state',{headers:authHeaders})).json()).user.gameId,'PagesTest');
+ const blocked=await fetch(base+'/api/auth',{method:'POST',headers:{Origin:'https://evil.invalid','Content-Type':'application/json'},body:JSON.stringify({mode:'logout'})});assert.equal(blocked.status,403);
+ await fetch(base+'/api/auth',{method:'POST',headers:{...authHeaders,'Content-Type':'application/json'},body:JSON.stringify({mode:'logout'})});
+ assert.equal((await (await fetch(base+'/api/state',{headers:authHeaders})).json()).user,null);
  const user=await call('/api/auth','POST',{mode:'register',gameId:'AliyunTest',password:'test-only-12345',confirmPassword:'test-only-12345'},'',201);
  const cookie=user.cookie;assert.equal(user.json.user.role,'user');
  const other=await call('/api/auth','POST',{mode:'register',gameId:'OtherTest',password:'test-only-12345',confirmPassword:'test-only-12345'},'',201);

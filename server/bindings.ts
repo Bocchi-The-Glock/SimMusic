@@ -2,6 +2,7 @@
 import { openDatabase, fileBucket } from './storage.mjs';
 let database: D1Database | undefined;
 export const env = {
+  get SIMMUSIC_ALLOWED_ORIGIN() { return process.env.SIMMUSIC_ALLOWED_ORIGIN; },
   get DB(): D1Database { return database ??= openDatabase() as unknown as D1Database; },
   get BUCKET(): R2Bucket { return fileBucket() as unknown as R2Bucket; },
 };

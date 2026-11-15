@@ -12,6 +12,7 @@ import {MyPage} from "./my-page";
 import {FavoriteButton} from "./favorite-button";
 import "./community.css";
 import {applyConfirmedMutation,SnapshotLoader} from "@/lib/client-state";
+import {apiFetch,readApiJson} from "@/lib/api-client";
 type Modal="auth"|"venue"|"event"|"song"|"song-detail"|"genres"|"account"|"confirm"|"artist-detail"|"image"|null;
 export default function Home(){
  const [data,setData]=useState<Data>({user:null,livehouses:[],events:[],songs:[],shops:[],genres:[],artists:[]});
@@ -38,7 +39,7 @@ export default function Home(){
  function refreshInBackground(){const loader=snapshotRef.current;if(!loader)return;void loader.load().catch(()=>{if(mounted.current&&snapshotRef.current===loader)setSyncError(hasSaved.current?"操作已保存，列表同步失败，请重试同步。":"列表同步失败，请重试同步。");});}
  useEffect(()=>{
    let alive=true;mounted.current=true;
-   const loader=new SnapshotLoader<Data>(async signal=>{const res=await fetch("/api/state",{cache:"no-store",signal});const result=await res.json() as Data & {error?:string};if(!res.ok)throw new Error(result.error||"暂时无法连接，请稍后重试");return result;},result=>{setData(result);setLoadError("");setSyncError("");hasSaved.current=false;},setSyncing);
+   const loader=new SnapshotLoader<Data>(async signal=>{const res=await apiFetch("/api/state",{cache:"no-store",signal});const result=await readApiJson(res) as Data & {error?:string};if(!res.ok)throw new Error(result.error||"暂时无法连接，请稍后重试");return result;},result=>{setData(result);setLoadError("");setSyncError("");hasSaved.current=false;},setSyncing);
    snapshotRef.current=loader;
    void loader.load().catch(e=>{if(alive)setLoadError(e.message);}).finally(()=>{if(alive)setLoading(false);});
    return()=>{alive=false;mounted.current=false;loader.dispose();if(snapshotRef.current===loader)snapshotRef.current=null;};
@@ -56,10 +57,10 @@ export default function Home(){
  function requireLogin(m:Modal){if(!user){setAuthMode("login");open("auth");}else open(m);}
  async function request(path:string,body?:unknown,method="POST"){
    let res:Response;
-   try{res=await fetch(path,{method,headers:{"Content-Type":"application/json"},body:body===undefined?undefined:JSON.stringify(body)});}
+   try{res=await apiFetch(path,{method,headers:{"Content-Type":"application/json"},body:body===undefined?undefined:JSON.stringify(body)});}
    catch{throw new Error("连接中断，暂无法确认操作结果。请刷新列表确认后再试。");}
    let result:Record<string,unknown> & {error?:string;id?:string};
-   try{const parsed:unknown=await res.json();if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))throw new Error();result=parsed as typeof result;}
+   try{const parsed:unknown=await readApiJson(res);if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))throw new Error();result=parsed as typeof result;}
    catch{throw new Error(res.ok?"服务器响应不完整，暂无法确认操作结果。请刷新列表确认后再试。":"服务器暂时无法处理请求，请稍后重试。");}
    if(!res.ok)throw new Error(result.error||"操作没有完成，请重试");
    if(mounted.current){hasSaved.current=true;setData(current=>applyConfirmedMutation(current,path,method,result));}
