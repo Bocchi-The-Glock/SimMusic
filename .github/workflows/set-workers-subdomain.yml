@@ -25,7 +25,7 @@ jobs:
           if(!account||!token)throw new Error('Missing Cloudflare configuration');
           const url=`https://api.cloudflare.com/client/v4/accounts/${account}/workers/subdomain`;
           async function api(method='GET',body){
-            const response=await fetch(url,{method,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(30000)});
+            const response=await fetch(url,{method,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json',...(method==='PUT'?{'allow-rename':'1'}:{})},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(30000)});
             const data=await response.json();
             if(!response.ok||!data.success)throw new Error(JSON.stringify({status:response.status,errors:data.errors}));
             return data.result;
