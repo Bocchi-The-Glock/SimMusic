@@ -1,6 +1,10 @@
 # SimMusic
 
-网站：https://simmusic.simmc.workers.dev
+网站：https://simmc-music.github.io/
+
+阿里云后端：https://121.40.158.251:1145 。实际部署与维护见 [部署说明](docs/ALIYUN_DEPLOY.md)。
+
+备用 Cloudflare：https://simmusic.simmc.workers.dev
 
 自动部署：[GitHub Actions](https://github.com/Bocchi-The-Glock/SimMusic/actions/workflows/deploy.yml)，推送到 `main` 后运行。
 

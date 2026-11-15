@@ -1,0 +1,6 @@
+[Unit]
+Description=Renew SimMusic HTTPS IP certificate
+After=network-online.target
+[Service]
+Type=oneshot
+ExecStart=/bin/sh /opt/simmusic/acme.sh --cron --home /opt/simmusic/acme-state

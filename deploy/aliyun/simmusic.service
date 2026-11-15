@@ -10,6 +10,7 @@ WorkingDirectory=/opt/simmusic/current
 Environment=NODE_ENV=production
 Environment=HOST=127.0.0.1
 Environment=PORT=3100
+Environment=SIMMUSIC_ALLOWED_ORIGIN=https://simmc-music.github.io
 Environment=SIMMUSIC_DATA_DIR=/var/lib/simmusic
 Environment=NODE_OPTIONS=--max-old-space-size=384
 ExecStart=/opt/simmusic/node/bin/node /opt/simmusic/current/server.js

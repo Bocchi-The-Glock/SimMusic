@@ -1,0 +1,14 @@
+[Unit]
+Description=SimMusic independent web proxy
+After=network.target simmusic.service
+Wants=simmusic.service
+[Service]
+Type=forking
+PIDFile=/opt/simmusic/nginx.pid
+ExecStartPre=/usr/bin/nginx -t -p /opt/simmusic/ -c /opt/simmusic/nginx.conf
+ExecStart=/usr/bin/nginx -p /opt/simmusic/ -c /opt/simmusic/nginx.conf
+ExecReload=/usr/bin/nginx -p /opt/simmusic/ -c /opt/simmusic/nginx.conf -s reload
+ExecStop=/usr/bin/nginx -p /opt/simmusic/ -c /opt/simmusic/nginx.conf -s quit
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
