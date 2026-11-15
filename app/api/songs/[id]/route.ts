@@ -15,7 +15,7 @@ export async function DELETE(request: Request, context: {params: Promise<{id:str
 
 export async function PATCH(request: Request, context: {params: Promise<{id:string}>}) { return endpoint(async () => {
   const user=await requireUser(request), data=await body(request,IMAGE_BODY_BYTES), {id}=await context.params;
-  const song=await db().prepare('SELECT owner,owner_id,instruments,sale_x,sale_y,sale_z FROM songs WHERE id=?').bind(id).first<{owner:string;owner_id:string}&StoredSongExtras>();
+  const song=await db().prepare('SELECT owner,owner_id,created_at AS createdAt,instruments,sale_x,sale_y,sale_z FROM songs WHERE id=?').bind(id).first<{owner:string;owner_id:string;createdAt:number}&StoredSongExtras>();
   if (!song) throw new HttpError(404,'这首乐曲已不存在');
   if (user.role!=='admin' && song.owner_id!==user.id) throw new HttpError(403,'只有收录者或管理员可以编辑这首乐曲');
   const fields=await songFields(data,song);
@@ -39,5 +39,5 @@ export async function PATCH(request: Request, context: {params: Promise<{id:stri
     favoriteCount=Number(favorite.favoriteCount);isFavorited=!!favorite.isFavorited;
   } catch(error) { await discardImage(image?.key); throw error; }
   if(changeImage)discardImageLater(previousKey);
-  return json({id,...fields,owner:song.owner,imageUrl:imageUrl(changeImage?image?.key:previousKey),favoriteCount,isFavorited,canEdit:true});
+  return json({id,...fields,createdAt:song.createdAt,owner:song.owner,imageUrl:imageUrl(changeImage?image?.key:previousKey),favoriteCount,isFavorited,canEdit:true});
 }); }

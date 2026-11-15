@@ -34,5 +34,5 @@ export async function PATCH(request: Request, context: {params: Promise<{id:stri
     previousKey=previous.results[0]?.object_key as string|undefined;
   } catch(error) { await discardImage(image?.key); throw error; }
   if(changeImage)discardImageLater(previousKey);
-  return json({id,name,x,y,z,port,owner:house.owner,protected:false,imageUrl:imageUrl(changeImage?image?.key:previousKey)});
+  return json({id,name,x,y,z,port,createdAt:house.created_at,owner:house.owner,protected:false,imageUrl:imageUrl(changeImage?image?.key:previousKey)});
 }); }

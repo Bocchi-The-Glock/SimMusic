@@ -113,8 +113,8 @@ export async function rateLimit(request: Request, category: string, limit: numbe
   if (row && row.count > limit) throw new HttpError(429,'操作过于频繁，请稍后再试');
 }
 export async function getLivehouse(id: string) {
-  if (id===STARRY.id) return {...STARRY,owner_id:ADMIN.id};
-  return db().prepare('SELECT * FROM livehouses WHERE id = ?').bind(id).first<{id:string;name:string;owner:string;owner_id:string;x:number;y:number;z:number;port:string}>();
+  if (id===STARRY.id) return {...STARRY,owner_id:ADMIN.id,created_at:0};
+  return db().prepare('SELECT * FROM livehouses WHERE id = ?').bind(id).first<{id:string;name:string;owner:string;owner_id:string;x:number;y:number;z:number;port:string;created_at:number}>();
 }
 export async function getGenres() {
   const result=await db().prepare('SELECT name FROM genres ORDER BY rowid').all<{name:string}>();
