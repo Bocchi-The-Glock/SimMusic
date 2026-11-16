@@ -71,3 +71,4 @@ npm run dev
 ## 阿里云版本
 
 运行 npm run build:aliyun 生成独立部署包，数据库和图片保存在服务器本地。完整步骤见 [阿里云部署说明](docs/ALIYUN_DEPLOY.md)。GitHub Actions 的 Package SimMusic for Aliyun 会生成 Linux 发布包。
+
