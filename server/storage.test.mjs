@@ -15,7 +15,7 @@ test('transactions rollback, persist, and migrate once', async () => {
   assert.equal(result[0].meta.changes,1); assert.equal(result[1].results[0].name,'b');
   db.close(); db=openDatabase(dir);
   assert.equal(await db.prepare('SELECT name FROM genres').first('name'),'b');
-  assert.equal(await db.prepare('SELECT COUNT(*) AS n FROM simmusic_migrations').first('n'),5);
+  assert.equal(await db.prepare('SELECT COUNT(*) AS n FROM simmusic_migrations').first('n'),6);
  } finally {db.close();await rm(dir,{recursive:true});}
 });
 test('images roundtrip and reject traversal; incomplete imports fail closed',async()=>{
@@ -52,5 +52,27 @@ test('catalog migration preserves every old table value and existing identity',a
   assert.equal(sqlite.prepare("SELECT id FROM players WHERE game_key='existingplayer'").get().id,'old-user');
   assert.equal(sqlite.prepare("SELECT creator_id FROM shops WHERE id='old-shop'").get().creator_id,'old-user');
   assert.equal(sqlite.prepare("SELECT instruments FROM songs WHERE id='old-song'").get().instruments,'["钢琴"]');
+ }finally{sqlite.close();await rm(dir,{recursive:true});}
+});
+
+
+test('bands/activity migration preserves complete catalog-era rows including imported identities',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'simmusic-community-upgrade-'));
+ let sqlite=new DatabaseSync(join(dir,'simmusic.sqlite'));
+ try{
+  const names=(await readdir('drizzle')).filter(n=>/^000[0-4].*\.sql$/.test(n)).sort();
+  sqlite.exec('CREATE TABLE simmusic_migrations(name TEXT PRIMARY KEY)');
+  for(const name of names){sqlite.exec(await readFile(join('drizzle',name),'utf8'));sqlite.prepare('INSERT INTO simmusic_migrations VALUES (?)').run(name);}
+  sqlite.exec(`INSERT INTO players VALUES ('pending','PendingPlayer','pendingplayer','Keep contact');
+   INSERT INTO songs(id,title,artist,price,custom_price,bars,genre,description,owner,owner_id,created_at,instruments,sale_x,sale_y,sale_z) VALUES ('song','Keep title','Artist',50,0,10,'游戏音乐','Keep description','PendingPlayer','pending',1,'["钢琴","贝斯"]',12,64,34);
+   INSERT INTO shops(id,name,name_key,x,y,z,port,created_at,owner_id,creator_id,coordinates_known) VALUES ('shop','Keep shop','keep shop',0,0,0,'',1,'pending','system-admin',0);
+   INSERT INTO song_shops VALUES ('song','shop');
+   INSERT INTO import_records VALUES ('source','original-id','song');`);
+  const tables=sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name<>'simmusic_migrations'").all().map(r=>r.name);
+  const originals=Object.fromEntries(tables.map(name=>[name,JSON.stringify(sqlite.prepare(`SELECT * FROM ${name}`).all())]));
+  sqlite.close();const upgraded=openDatabase(dir);upgraded.close();sqlite=new DatabaseSync(join(dir,'simmusic.sqlite'));
+  for(const name of tables)assert.equal(JSON.stringify(sqlite.prepare(`SELECT * FROM ${name}`).all()),originals[name],name);
+  for(const name of ['bands','band_members','activities','activity_signups'])assert.equal(sqlite.prepare(`SELECT COUNT(*) AS n FROM ${name}`).get().n,0);
+  assert.equal(sqlite.prepare('PRAGMA integrity_check').get().integrity_check,'ok');
  }finally{sqlite.close();await rm(dir,{recursive:true});}
 });

@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, primaryKey, index } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, primaryKey, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(), gameId: text('game_id').notNull(),
@@ -65,3 +65,18 @@ export const favorites = sqliteTable('favorites', {
   songId: text('song_id').notNull().references(() => songs.id, {onDelete: 'cascade'}),
   userId: text('user_id').notNull(), createdAt: integer('created_at').notNull(),
 }, (t) => [primaryKey({columns: [t.songId, t.userId]}), index('favorites_user_idx').on(t.userId)]);
+
+export const bands = sqliteTable('bands', {
+ id:text('id').primaryKey(), name:text('name').notNull(), captainId:text('captain_id').notNull().references(()=>players.id), createdAt:integer('created_at').notNull(),
+},t=>[uniqueIndex('bands_captain_unique').on(t.captainId)]);
+export const bandMembers = sqliteTable('band_members', {
+ bandId:text('band_id').notNull().references(()=>bands.id,{onDelete:'cascade'}), playerId:text('player_id').notNull().references(()=>players.id),
+},t=>[primaryKey({columns:[t.bandId,t.playerId]}),index('band_members_player_idx').on(t.playerId)]);
+export const activities = sqliteTable('activities', {
+ id:text('id').primaryKey(), name:text('name').notNull(), date:text('date').notNull(), description:text('description').notNull(), location:text('location').notNull(),
+ ownerId:text('owner_id').notNull().references(()=>players.id), livehouseId:text('livehouse_id'), createdAt:integer('created_at').notNull(),
+},t=>[uniqueIndex('activities_venue_date_unique').on(t.livehouseId,t.date)]);
+export const activitySignups = sqliteTable('activity_signups', {
+ id:integer('id').primaryKey({autoIncrement:true}), activityId:text('activity_id').notNull().references(()=>activities.id,{onDelete:'cascade'}),
+ kind:text('kind').notNull(), playerId:text('player_id').notNull(), bandId:text('band_id').references(()=>bands.id), creatorId:text('creator_id'), participantKey:text('participant_key').notNull(), createdAt:integer('created_at').notNull(),
+},t=>[uniqueIndex('activity_signup_participant_unique').on(t.activityId,t.participantKey)]);

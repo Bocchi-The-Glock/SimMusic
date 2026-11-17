@@ -1,3 +1,4 @@
+import { communityState } from '@/lib/server/community';
 import { ADMIN, DEFAULT_GENRES, STARRY } from '@/lib/server/constants';
 import { currentUserStatement, db, endpoint, json, sessionToken, sha256, type User } from '@/lib/server/core';
 import { INSTRUMENTS, storedInstruments } from '@/lib/server/instruments';
@@ -32,7 +33,7 @@ export async function GET(request: Request) { return endpoint(async () => {
   for (const link of links.results) shopMap.set(link.song_id,[...(shopMap.get(link.song_id)||[]),link.shop_id]);
   const venueOwners=new Map(houses.results.map((h)=>[String(h.id),String(h.owner_id)]));
   venueOwners.set(STARRY.id,ADMIN.id);
-  return json({user,genres,instruments:INSTRUMENTS,artists:artists.results.map(a=>({...a,registered:!!a.registered,avatarUrl:imageMap.get(`profile:${a.id}`)||null})),livehouses:[{...STARRY,createdAt:0,imageUrl:imageMap.get(`livehouse:${STARRY.id}`)||null},...houses.results.map(({owner_id: _ownerId,...h})=>({...h,protected:false,imageUrl:imageMap.get(`livehouse:${h.id}`)||null}))],
+  return json({...await communityState(user),user,genres,instruments:INSTRUMENTS,artists:artists.results.map(a=>({...a,registered:!!a.registered,avatarUrl:imageMap.get(`profile:${a.id}`)||null})),livehouses:[{...STARRY,createdAt:0,imageUrl:imageMap.get(`livehouse:${STARRY.id}`)||null},...houses.results.map(({owner_id: _ownerId,...h})=>({...h,protected:false,imageUrl:imageMap.get(`livehouse:${h.id}`)||null}))],
     events:events.results.map(({creator_id,...e})=>({...e,id:String(e.id),canDelete:canDeleteEvent(user,{creatorId:creator_id==null?null:String(creator_id),playerId:String(e.playerId)},venueOwners.get(String(e.livehouseId)))})),
     shops:shops.results.map((s)=>({...s,coordinatesKnown:!!s.coordinatesKnown,owner:s.ownerId===ADMIN.id?ADMIN.gameId:s.owner,canManage:!!user && (user.role==='admin' || user.id===s.ownerId || user.id===s.creatorId),imageUrl:imageMap.get(`shop:${s.id}`)||null})),
     songs:songs.results.map(({owner_id,instruments,sale_x,sale_y,sale_z,...s})=>({...s,instruments:storedInstruments(instruments),saleCoordinates:sale_x!=null&&sale_y!=null&&sale_z!=null?{x:Number(sale_x),y:Number(sale_y),z:Number(sale_z)}:null,customPrice:!!s.customPrice,shopIds:shopMap.get(String(s.id))||[],imageUrl:imageMap.get(`song:${s.id}`)||null,favoriteCount:Number(s.favoriteCount),isFavorited:selectedFavorites.has(String(s.id)),canEdit:!!user&&(user.role==='admin'||user.id===owner_id)}))});
