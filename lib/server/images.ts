@@ -5,7 +5,7 @@ import { ADMIN } from './constants';
 
 export const MAX_IMAGE_BYTES = 100000;
 export const IMAGE_BODY_BYTES = 160000;
-export type ImageKind = 'livehouse' | 'song' | 'shop' | 'profile';
+export type ImageKind = 'livehouse' | 'song' | 'shop' | 'profile' | 'activity';
 type Raster = {bytes: Uint8Array; mime: string; extension: string};
 export type StoredImage = {key: string; mime: string; size: number};
 
@@ -114,21 +114,24 @@ export async function storeImage(image: Raster | null): Promise<StoredImage | nu
   await bucket().put(`covers/${key}`, image.bytes, {httpMetadata: {contentType: image.mime, cacheControl: 'public, max-age=31536000, immutable'}});
   return {key, mime: image.mime, size: image.bytes.byteLength};
 }
-export function imageInsert(kind: ImageKind, id: string, image: StoredImage) {
+export function imageInsert(kind: ImageKind, id: string, image: StoredImage, afterMutation=false) {
   const existence: Record<ImageKind, {sql: string; args: string[]}> = {
     livehouse: {sql: "(?='starry' OR EXISTS(SELECT 1 FROM livehouses WHERE id=?))", args: [id,id]},
     song: {sql: 'EXISTS(SELECT 1 FROM songs WHERE id=?)', args: [id]},
     shop: {sql: 'EXISTS(SELECT 1 FROM shops WHERE id=?)', args: [id]},
     profile: {sql: '(?=? OR EXISTS(SELECT 1 FROM users WHERE id=?))', args: [id,ADMIN.id,id]},
+    activity: {sql: 'EXISTS(SELECT 1 FROM activities WHERE id=?)', args: [id]},
   };
   const exists=existence[kind];
-  return db().prepare(`INSERT INTO entity_images (entity_type,entity_id,object_key,mime_type,size_bytes) SELECT ?,?,?,?,? WHERE ${exists.sql} ON CONFLICT(entity_type,entity_id) DO UPDATE SET object_key=excluded.object_key,mime_type=excluded.mime_type,size_bytes=excluded.size_bytes`).bind(kind,id,image.key,image.mime,image.size,...exists.args);
+  // afterMutation is used immediately after an entity write in the same batch:
+  // a rejected optimistic update must leave its existing cover untouched.
+  return db().prepare(`INSERT INTO entity_images (entity_type,entity_id,object_key,mime_type,size_bytes) SELECT ?,?,?,?,? WHERE ${exists.sql}${afterMutation?' AND changes()>0':''} ON CONFLICT(entity_type,entity_id) DO UPDATE SET object_key=excluded.object_key,mime_type=excluded.mime_type,size_bytes=excluded.size_bytes`).bind(kind,id,image.key,image.mime,image.size,...exists.args);
 }
 export function imageSelect(kind: ImageKind, id: string) {
   return db().prepare('SELECT object_key FROM entity_images WHERE entity_type=? AND entity_id=?').bind(kind,id);
 }
-export function imageDelete(kind: ImageKind, id: string) {
-  return db().prepare('DELETE FROM entity_images WHERE entity_type=? AND entity_id=?').bind(kind,id);
+export function imageDelete(kind: ImageKind, id: string, afterMutation=false) {
+  return db().prepare(`DELETE FROM entity_images WHERE entity_type=? AND entity_id=?${afterMutation?' AND changes()>0':''}`).bind(kind,id);
 }
 export async function discardImage(key: string | null | undefined) {
   if (!key) return;

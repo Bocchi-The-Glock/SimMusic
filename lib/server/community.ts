@@ -2,6 +2,7 @@ import { db, getLivehouse, type User } from './core';
 import { ADMIN } from './constants';
 import { ensurePlayer, playerKey } from './players';
 import { gameId, HttpError, requiredText } from './validation';
+import { imageUrl } from './images';
 
 export type BandRow={id:string;name:string;captain_id:string;created_at:number};
 export type ActivityRow={id:string;name:string;date:string;description:string;location:string;owner_id:string;livehouse_id:string|null;created_at:number};
@@ -33,12 +34,12 @@ export async function communityState(user:User|null) {
  const [bands,members,activities,signups]=await db().batch<Record<string,unknown>>([
   db().prepare('SELECT b.id,b.name,b.captain_id AS captainId,p.game_id AS captainName,b.created_at AS createdAt FROM bands b JOIN players p ON p.id=b.captain_id ORDER BY b.created_at DESC,b.id'),
   db().prepare('SELECT m.band_id AS bandId,p.id,p.game_id AS gameId,(u.id IS NOT NULL OR p.id=?) AS registered FROM band_members m JOIN players p ON p.id=m.player_id LEFT JOIN users u ON u.id=p.id ORDER BY p.game_key').bind(ADMIN.id),
-  db().prepare('SELECT a.id,a.name,a.date,a.description,a.location,a.owner_id AS ownerId,p.game_id AS ownerName,a.livehouse_id AS livehouseId,a.created_at AS createdAt,(SELECT COUNT(*) FROM activity_signups s WHERE s.activity_id=a.id) AS signupCount FROM activities a JOIN players p ON p.id=a.owner_id ORDER BY a.date DESC,a.created_at DESC,a.id'),
-  db().prepare(`SELECT s.id,s.activity_id AS activityId,s.kind,s.player_id AS playerId,s.band_id AS bandId,s.creator_id AS creatorId,s.created_at AS createdAt,a.owner_id AS ownerId,CASE WHEN s.kind='band' THEN b.name ELSE s.player_id END AS displayName FROM activity_signups s JOIN activities a ON a.id=s.activity_id LEFT JOIN bands b ON b.id=s.band_id ORDER BY s.id`),
+  db().prepare("SELECT a.id,a.name,a.date,a.description,a.location,a.owner_id AS ownerId,p.game_id AS ownerName,a.livehouse_id AS livehouseId,a.created_at AS createdAt,i.object_key AS imageKey,(SELECT COUNT(*) FROM activity_signups s WHERE s.activity_id=a.id) AS signupCount FROM activities a JOIN players p ON p.id=a.owner_id LEFT JOIN entity_images i ON i.entity_type='activity' AND i.entity_id=a.id ORDER BY a.date DESC,a.created_at DESC,a.id"),
+  db().prepare(`SELECT s.id,s.activity_id AS activityId,s.kind,s.player_id AS playerId,s.band_id AS bandId,s.creator_id AS creatorId,s.created_at AS createdAt,s.program_name AS programName,a.owner_id AS ownerId,CASE WHEN s.kind='band' THEN b.name ELSE s.player_id END AS displayName FROM activity_signups s JOIN activities a ON a.id=s.activity_id LEFT JOIN bands b ON b.id=s.band_id ORDER BY s.id`),
  ]);
  return {
   bands:bands.results.map(b=>{const list=members.results.filter(m=>m.bandId===b.id).map(({bandId,...m})=>({...m,id:String(m.id),gameId:String(m.gameId),registered:!!m.registered}));return {...b,id:String(b.id),members:list,isMember:!!user&&(b.captainId===user.id||list.some(m=>m.id===user.id)),canManage:canManage(user,String(b.captainId))};}),
-  activities:activities.results.map(a=>({...a,id:String(a.id),signupCount:Number(a.signupCount),canManage:canManage(user,String(a.ownerId))})),
+  activities:activities.results.map(({imageKey,...a})=>({...a,id:String(a.id),imageUrl:imageUrl(imageKey as string|null),signupCount:Number(a.signupCount),canManage:canManage(user,String(a.ownerId))})),
   activitySignups:signups.results.map(({creatorId,ownerId,...s})=>({...s,id:String(s.id),canDelete:canCancelSignup(user,{kind:String(s.kind),playerId:String(s.playerId),creatorId:creatorId==null?null:String(creatorId),ownerId:String(ownerId)})})),
  };
 }

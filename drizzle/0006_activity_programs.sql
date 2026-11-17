@@ -1,0 +1,1 @@
+ALTER TABLE `activity_signups` ADD `program_name` text DEFAULT '' NOT NULL;

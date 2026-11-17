@@ -15,7 +15,7 @@ test('transactions rollback, persist, and migrate once', async () => {
   assert.equal(result[0].meta.changes,1); assert.equal(result[1].results[0].name,'b');
   db.close(); db=openDatabase(dir);
   assert.equal(await db.prepare('SELECT name FROM genres').first('name'),'b');
-  assert.equal(await db.prepare('SELECT COUNT(*) AS n FROM simmusic_migrations').first('n'),6);
+  assert.equal(await db.prepare('SELECT COUNT(*) AS n FROM simmusic_migrations').first('n'),7);
  } finally {db.close();await rm(dir,{recursive:true});}
 });
 test('images roundtrip and reject traversal; incomplete imports fail closed',async()=>{
@@ -74,5 +74,34 @@ test('bands/activity migration preserves complete catalog-era rows including imp
   for(const name of tables)assert.equal(JSON.stringify(sqlite.prepare(`SELECT * FROM ${name}`).all()),originals[name],name);
   for(const name of ['bands','band_members','activities','activity_signups'])assert.equal(sqlite.prepare(`SELECT COUNT(*) AS n FROM ${name}`).get().n,0);
   assert.equal(sqlite.prepare('PRAGMA integrity_check').get().integrity_check,'ok');
+ }finally{sqlite.close();await rm(dir,{recursive:true});}
+});
+
+test('activity programme migration preserves existing signups, covers and venue detach behavior',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'simmusic-programme-upgrade-'));
+ let sqlite=new DatabaseSync(join(dir,'simmusic.sqlite'));
+ try{
+  const names=(await readdir('drizzle')).filter(n=>/^000[0-5].*\.sql$/.test(n)).sort();
+  sqlite.exec('CREATE TABLE simmusic_migrations(name TEXT PRIMARY KEY)');
+  for(const name of names){sqlite.exec(await readFile(join('drizzle',name),'utf8'));sqlite.prepare('INSERT INTO simmusic_migrations VALUES (?)').run(name);}
+  sqlite.exec(`INSERT INTO players VALUES ('pending','PendingPlayer','pendingplayer','Keep contact');
+   INSERT INTO bands VALUES ('band','Keep band','pending',1);
+   INSERT INTO livehouses VALUES ('venue','Keep venue',1,64,3,'','PendingPlayer','pending',1);
+   INSERT INTO activities VALUES ('activity','Keep activity','2026-12-01','Keep introduction','Keep location','pending','venue',1);
+   INSERT INTO activity_signups VALUES (7,'activity','individual','Guest',NULL,NULL,'individual:guest',2);
+   INSERT INTO activity_signups VALUES (12,'activity','band','PendingPlayer','band','pending','band:band',3);
+   INSERT INTO entity_images VALUES ('song','old-song','song-cover','image/png',100),('shop','old-shop','shop-cover','image/png',200),('profile','pending','profile-cover','image/webp',300),('livehouse','venue','venue-cover','image/webp',400);`);
+  const tables=sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name<>'simmusic_migrations'").all().map(r=>r.name);
+  const originals=tables.map(name=>{const columns=sqlite.prepare(`PRAGMA table_info(${name})`).all().map(r=>r.name).join(',');return {name,columns,rows:JSON.stringify(sqlite.prepare(`SELECT ${columns} FROM ${name}`).all())};});
+  sqlite.close();const upgraded=openDatabase(dir);upgraded.close();sqlite=new DatabaseSync(join(dir,'simmusic.sqlite'));
+  for(const old of originals)assert.equal(JSON.stringify(sqlite.prepare(`SELECT ${old.columns} FROM ${old.name}`).all()),old.rows,old.name);
+  assert.deepEqual(sqlite.prepare('SELECT program_name FROM activity_signups ORDER BY id').all().map(r=>r.program_name),['','']);
+  sqlite.exec("INSERT INTO entity_images VALUES ('activity','activity','activity-cover','image/png',500)");
+  assert.equal(sqlite.prepare("SELECT object_key FROM entity_images WHERE entity_type='activity'").get().object_key,'activity-cover');
+  sqlite.exec("DELETE FROM livehouses WHERE id='venue'");
+  assert.equal(sqlite.prepare("SELECT livehouse_id FROM activities WHERE id='activity'").get().livehouse_id,null);
+  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM activity_signups').get().n,2);
+  assert.equal(sqlite.prepare('PRAGMA integrity_check').get().integrity_check,'ok');
+  assert.deepEqual(sqlite.prepare('PRAGMA foreign_key_check').all(),[]);
  }finally{sqlite.close();await rm(dir,{recursive:true});}
 });

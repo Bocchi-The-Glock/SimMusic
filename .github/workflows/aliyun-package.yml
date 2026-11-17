@@ -22,6 +22,7 @@ jobs:
       - run: node lib/server/catalog-check.mjs
       - run: node lib/server/events-check.mjs
       - run: node lib/server/bands-activities-check.mjs
+      - run: node lib/server/activity-images-check.mjs
       - run: tar -czf simmusic-aliyun.tar.gz -C dist/standalone .
       - uses: actions/upload-artifact@v4
         with:
