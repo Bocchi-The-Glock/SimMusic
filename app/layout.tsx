@@ -4,7 +4,7 @@ import "./simmusic.css";
 
 export const metadata: Metadata = {
   title: "SimMusic",
-  description: "Simmc Livehouse 排班与乐曲收录。",
+  description: "SimMC 演出场地排班与乐曲收录。",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",

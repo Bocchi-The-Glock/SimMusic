@@ -1,4 +1,4 @@
-import { db, type User } from './core';
+import { db, getLivehouse, type User } from './core';
 import { ADMIN } from './constants';
 import { ensurePlayer, playerKey } from './players';
 import { gameId, HttpError, requiredText } from './validation';
@@ -22,7 +22,13 @@ export function description(value:unknown) {
  if(typeof value!=='string'||!value.trim()||value.length>5000||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(value))throw new HttpError(400,'请填写活动介绍，最多 5000 个字符');
  return value.trim();
 }
-export function nullableVenue(value:unknown) { return value==null||value===''?null:requiredText(value,'Livehouse',80); }
+export function nullableVenue(value:unknown) { return value==null||value===''?null:requiredText(value,'演出场地',80); }
+export async function requireVenueManager(user:User,venueId:string|null) {
+ if(!venueId)return;
+ const venue=await getLivehouse(venueId);
+ if(!venue)throw new HttpError(404,'演出场地已不存在');
+ if(!canManage(user,venue.owner_id))throw new HttpError(403,'只有场地负责人或管理员可以安排该演出场地的活动');
+}
 export async function communityState(user:User|null) {
  const [bands,members,activities,signups]=await db().batch<Record<string,unknown>>([
   db().prepare('SELECT b.id,b.name,b.captain_id AS captainId,p.game_id AS captainName,b.created_at AS createdAt FROM bands b JOIN players p ON p.id=b.captain_id ORDER BY b.created_at DESC,b.id'),
