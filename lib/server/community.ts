@@ -9,8 +9,8 @@ export type ActivityRow={id:string;name:string;date:string;description:string;lo
 export const getBand=(id:string)=>db().prepare('SELECT * FROM bands WHERE id=?').bind(id).first<BandRow>();
 export const getActivity=(id:string)=>db().prepare('SELECT * FROM activities WHERE id=?').bind(id).first<ActivityRow>();
 export function canManage(user:User|null, ownerId:string) { return !!user&&(user.role==='admin'||user.id===ownerId); }
-export function canCancelSignup(user:User|null, row:{kind:string;playerId:string;creatorId:string|null;ownerId:string}) {
- return !!user&&(canManage(user,row.ownerId)||row.creatorId===user.id||(row.kind==='individual'&&playerKey(row.playerId)===playerKey(user.gameId)));
+export function canCancelSignup(user:User|null, row:{kind:string;playerId:string;creatorId:string|null;ownerId:string;isBandMember?:boolean}) {
+ return !!user&&(canManage(user,row.ownerId)||row.isBandMember||row.creatorId===user.id||(row.kind==='individual'&&playerKey(row.playerId)===playerKey(user.gameId)));
 }
 export async function memberIds(value:unknown,captainId:string) {
  if(!Array.isArray(value)||value.length>200)throw new HttpError(400,'成员 ID 需为列表，最多 200 人');
@@ -35,11 +35,14 @@ export async function communityState(user:User|null) {
   db().prepare('SELECT b.id,b.name,b.captain_id AS captainId,p.game_id AS captainName,b.created_at AS createdAt FROM bands b JOIN players p ON p.id=b.captain_id ORDER BY b.created_at DESC,b.id'),
   db().prepare('SELECT m.band_id AS bandId,p.id,p.game_id AS gameId,(u.id IS NOT NULL OR p.id=?) AS registered FROM band_members m JOIN players p ON p.id=m.player_id LEFT JOIN users u ON u.id=p.id ORDER BY p.game_key').bind(ADMIN.id),
   db().prepare("SELECT a.id,a.name,a.date,a.description,a.location,a.owner_id AS ownerId,p.game_id AS ownerName,a.livehouse_id AS livehouseId,a.created_at AS createdAt,i.object_key AS imageKey,(SELECT COUNT(*) FROM activity_signups s WHERE s.activity_id=a.id) AS signupCount FROM activities a JOIN players p ON p.id=a.owner_id LEFT JOIN entity_images i ON i.entity_type='activity' AND i.entity_id=a.id ORDER BY a.date DESC,a.created_at DESC,a.id"),
-  db().prepare(`SELECT s.id,s.activity_id AS activityId,s.kind,s.player_id AS playerId,s.band_id AS bandId,s.creator_id AS creatorId,s.created_at AS createdAt,s.program_name AS programName,a.owner_id AS ownerId,CASE WHEN s.kind='band' THEN b.name ELSE s.player_id END AS displayName FROM activity_signups s JOIN activities a ON a.id=s.activity_id LEFT JOIN bands b ON b.id=s.band_id ORDER BY s.id`),
+  db().prepare(`SELECT s.id,s.activity_id AS activityId,s.kind,s.player_id AS playerId,s.band_id AS bandId,s.creator_id AS creatorId,s.created_at AS createdAt,s.program_name AS programName,COALESCE(s.sort_order,s.id) AS sortOrder,a.owner_id AS ownerId,CASE WHEN s.kind='band' THEN b.name ELSE s.player_id END AS displayName FROM activity_signups s JOIN activities a ON a.id=s.activity_id LEFT JOIN bands b ON b.id=s.band_id ORDER BY s.id`),
  ]);
  return {
   bands:bands.results.map(b=>{const list=members.results.filter(m=>m.bandId===b.id).map(({bandId,...m})=>({...m,id:String(m.id),gameId:String(m.gameId),registered:!!m.registered}));return {...b,id:String(b.id),members:list,isMember:!!user&&(b.captainId===user.id||list.some(m=>m.id===user.id)),canManage:canManage(user,String(b.captainId))};}),
   activities:activities.results.map(({imageKey,...a})=>({...a,id:String(a.id),imageUrl:imageUrl(imageKey as string|null),signupCount:Number(a.signupCount),canManage:canManage(user,String(a.ownerId))})),
-  activitySignups:signups.results.map(({creatorId,ownerId,...s})=>({...s,id:String(s.id),canDelete:canCancelSignup(user,{kind:String(s.kind),playerId:String(s.playerId),creatorId:creatorId==null?null:String(creatorId),ownerId:String(ownerId)})})),
+  activitySignups:signups.results.map(({creatorId,ownerId,...s})=>{
+   const isBandMember=!!user&&s.kind==='band'&&(bands.results.some(b=>b.id===s.bandId&&b.captainId===user.id)||members.results.some(m=>m.bandId===s.bandId&&m.id===user.id));
+   return {...s,id:String(s.id),activityId:String(s.activityId),canEdit:!!user&&(user.role==='admin'||isBandMember||(s.kind==='individual'&&playerKey(String(s.playerId))===playerKey(user.gameId))),canDelete:canCancelSignup(user,{kind:String(s.kind),playerId:String(s.playerId),creatorId:creatorId==null?null:String(creatorId),ownerId:String(ownerId),isBandMember})};
+  }),
  };
 }

@@ -15,7 +15,7 @@ test('transactions rollback, persist, and migrate once', async () => {
   assert.equal(result[0].meta.changes,1); assert.equal(result[1].results[0].name,'b');
   db.close(); db=openDatabase(dir);
   assert.equal(await db.prepare('SELECT name FROM genres').first('name'),'b');
-  assert.equal(await db.prepare('SELECT COUNT(*) AS n FROM simmusic_migrations').first('n'),7);
+  assert.equal(await db.prepare('SELECT COUNT(*) AS n FROM simmusic_migrations').first('n'),8);
  } finally {db.close();await rm(dir,{recursive:true});}
 });
 test('images roundtrip and reject traversal; incomplete imports fail closed',async()=>{
@@ -101,6 +101,7 @@ test('activity programme migration preserves existing signups, covers and venue 
   sqlite.exec("DELETE FROM livehouses WHERE id='venue'");
   assert.equal(sqlite.prepare("SELECT livehouse_id FROM activities WHERE id='activity'").get().livehouse_id,null);
   assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM activity_signups').get().n,2);
+  assert.deepEqual(sqlite.prepare('SELECT sort_order FROM activity_signups ORDER BY id').all().map(r=>r.sort_order),[null,null]);
   assert.equal(sqlite.prepare('PRAGMA integrity_check').get().integrity_check,'ok');
   assert.deepEqual(sqlite.prepare('PRAGMA foreign_key_check').all(),[]);
  }finally{sqlite.close();await rm(dir,{recursive:true});}
