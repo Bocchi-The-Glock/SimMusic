@@ -85,23 +85,21 @@ export function ActivitySignupForm({ activity, signups, user, bands, initialKind
   const ownBands = user ? bands.filter(band => band.isMember || band.captainId === user.id) : [];
   const selectedBand = ownBands.find(band => band.id === chosenBandId) || ownBands[0];
   const activeKind = user ? kind : "individual";
-  const entries = signups.filter(signup => signup.activityId === activity.id);
   const playerId = user?.gameId || guestId.trim();
   const needsBand = activeKind === "band" && !ownBands.length;
-  const alreadySignedUp = entries.some(signup => activeKind === "band" ? signup.kind === "band" && signup.bandId === selectedBand?.id : signup.kind === "individual" && samePlayer(signup.playerId, playerId));
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const title = programName.trim();
-    if (busy || alreadySignedUp || !title || needsBand) return;
+    if (busy || !title || needsBand) return;
     if (activeKind === "band") { if (selectedBand) onSignup({ kind: "band", bandId: selectedBand.id, programName: title }); }
     else if (playerId) onSignup({ kind: "individual", playerId, programName: title });
   }
   return <form className="community-form activity-signup-form" onSubmit={submit}>
       <Field label="节目名"><input className="input" name="programName" value={programName} onChange={event => setProgramName(event.target.value)} required maxLength={120} disabled={busy} placeholder="填写演出节目" /></Field>
       <div className="signup-kind" role="group" aria-label="报名方式"><label><input type="radio" name="signupKind" value="individual" checked={activeKind === "individual"} onChange={() => setKind("individual")} disabled={busy} />个人</label><label title={!user ? "登录后可选择所属乐队" : undefined}><input type="radio" name="signupKind" value="band" checked={activeKind === "band"} onChange={() => setKind("band")} disabled={busy || !user} />乐队</label></div>
-      {activeKind === "band" ? <Field label="所属乐队"><select className="select" name="bandId" value={selectedBand?.id || ""} onChange={event => setChosenBandId(event.target.value)} disabled={busy || needsBand} required>{needsBand && <option value="">暂无所属乐队</option>}{ownBands.map(band => <option value={band.id} key={band.id}>{band.name}</option>)}</select></Field> : <Field label="游戏 ID"><input className="input" name="playerId" value={user?.gameId || guestId} onChange={event => setGuestId(event.target.value)} readOnly={!!user} disabled={busy} required maxLength={40} placeholder="输入游戏 ID" autoComplete="username" /></Field>}
+      {activeKind === "band" ? <Field label="所属乐队"><select className="select" name="bandId" value={selectedBand?.id || ""} onChange={event => setChosenBandId(event.target.value)} disabled={busy || needsBand} required>{needsBand && <option value="">暂无所属乐队</option>}{ownBands.map(band => <option value={band.id} key={band.id}>{band.name} · 队长：{band.captainName}</option>)}</select></Field> : <Field label="游戏 ID"><input className="input" name="playerId" value={user?.gameId || guestId} onChange={event => setGuestId(event.target.value)} readOnly={!!user} disabled={busy} required maxLength={40} placeholder="输入游戏 ID" autoComplete="username" /></Field>}
       {error && <div className="error-message" role="alert"><Info size={16} />{error}</div>}
-      <div className="modal-footer">{needsBand ? <button type="button" className="btn primary" disabled={busy} onClick={() => onCreateBand(programName)}><Plus size={17} />创建乐队</button> : <button type="submit" className="btn primary" disabled={busy || alreadySignedUp}>{busy ? "处理中…" : alreadySignedUp ? "已报名" : "确认报名"}</button>}</div>
+      <div className="modal-footer">{needsBand ? <button type="button" className="btn primary" disabled={busy} onClick={() => onCreateBand(programName)}><Plus size={17} />创建乐队</button> : <button type="submit" className="btn primary" disabled={busy}>{busy ? "处理中…" : "确认报名"}</button>}</div>
   </form>;
 }
 
@@ -131,7 +129,7 @@ export function ActivityHome({ activity, signups, user, busy = false, venueName,
       <div className="activity-programs-heading"><h2 id="activity-programs-title">演出节目 <span className="chip">{entries.length}</span></h2><button type="button" className="btn primary" disabled={busy} onClick={onSignup}><Plus size={17} />报名演出</button></div>
       {entries.length ? <ol className="activity-signups" start={(pagination.page - 1) * PAGE_SIZE + 1}>{pagination.items.map((signup, index) => <li key={signup.id}>
         <span className="signup-order" aria-hidden="true">{String((pagination.page - 1) * PAGE_SIZE + index + 1).padStart(2, "0")}</span>
-        <div className="signup-person"><strong>{signup.programName?.trim() || "未填写节目名"}</strong><span className="signup-performer">{signup.kind === "band" ? <UsersRound size={14} /> : <UserRound size={14} />}<span>{signup.displayName || signup.playerId}</span><span className="signup-kind-label">{signup.kind === "band" ? "乐队" : "个人"}</span></span></div>
+        <div className="signup-person"><strong>{signup.programName?.trim() || "未填写节目名"}</strong><span className="signup-performer">{signup.kind === "band" ? <UsersRound size={14} /> : <UserRound size={14} />}<span>{signup.displayName || signup.playerId}</span>{signup.kind === "band" && signup.bandCaptainName && <span>队长：{signup.bandCaptainName}</span>}<span className="signup-kind-label">{signup.kind === "band" ? "乐队" : "个人"}</span></span></div>
         <div className="program-actions">{user?.role==="admin"&&<><button type="button" className="btn secondary small" disabled={busy||entries[0]?.id===signup.id} onClick={()=>onMoveSignup(signup,"up")}>上移</button><button type="button" className="btn secondary small" disabled={busy||entries.at(-1)?.id===signup.id} onClick={()=>onMoveSignup(signup,"down")}>下移</button></>}{signup.canEdit&&<button type="button" className="btn secondary small" disabled={busy} onClick={()=>onEditSignup(signup)}>编辑</button>}
         {signup.canDelete && <button type="button" className="icon-btn danger" disabled={busy} aria-label={`取消 ${signup.displayName || signup.playerId} 的报名`} onClick={() => onDeleteSignup(signup)}><Trash2 size={16} /></button>}</div>
       </li>)}</ol> : <div className="empty-state compact">暂无演出节目</div>}

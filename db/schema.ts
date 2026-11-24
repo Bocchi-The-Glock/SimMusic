@@ -80,4 +80,4 @@ export const activitySignups = sqliteTable('activity_signups', {
  id:integer('id').primaryKey({autoIncrement:true}), activityId:text('activity_id').notNull().references(()=>activities.id,{onDelete:'cascade'}),
  kind:text('kind').notNull(), playerId:text('player_id').notNull(), bandId:text('band_id').references(()=>bands.id), creatorId:text('creator_id'), participantKey:text('participant_key').notNull(), createdAt:integer('created_at').notNull(),
  programName:text('program_name').notNull().default(''), sortOrder:integer('sort_order'),
-},t=>[uniqueIndex('activity_signup_participant_unique').on(t.activityId,t.participantKey)]);
+},t=>[index('activity_signup_participant_idx').on(t.activityId,t.participantKey)]);

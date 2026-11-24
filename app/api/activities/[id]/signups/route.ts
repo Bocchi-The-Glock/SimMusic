@@ -19,7 +19,7 @@ export async function POST(request:Request,context:{params:Promise<{id:string}>}
  // Membership and activity existence are checked again inside the insertion statement.
  const result=await db().prepare(`INSERT INTO activity_signups(activity_id,kind,player_id,band_id,creator_id,participant_key,created_at,program_name)
  SELECT ?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM activities WHERE id=?) AND (?='individual' OR EXISTS(SELECT 1 FROM bands b WHERE b.id=? AND (b.captain_id=? OR EXISTS(SELECT 1 FROM band_members m WHERE m.band_id=b.id AND m.player_id=?))))
- ON CONFLICT(activity_id,participant_key) DO NOTHING RETURNING id`).bind(id,kind,playerId,bandId,user?.id??null,participantKey,Date.now(),programName,id,kind,bandId,user?.id??null,user?.id??null).first<{id:number}>();
- if(!result)throw new HttpError(409,'已报名，或活动/乐队成员信息已变化，请刷新确认');
+ RETURNING id`).bind(id,kind,playerId,bandId,user?.id??null,participantKey,Date.now(),programName,id,kind,bandId,user?.id??null,user?.id??null).first<{id:number}>();
+ if(!result)throw new HttpError(409,'活动或乐队成员信息已变化，请刷新确认');
  return json((await communityState(user)).activitySignups.find(s=>s.id===String(result.id)),201);
 });}
